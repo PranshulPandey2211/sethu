@@ -1,0 +1,22 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Pranshul Pandey"
+            }
+        ],
+        "Category": "Windows and Tasks",
+        "Description": "Compact virtual desktop pager with dot, pill, button, number, and name styles",
+        "EnabledByDefault": true,
+        "Icon": "preferences-desktop-virtual",
+        "Id": "dev.pransh.sethu",
+        "License": "GPL-3.0-or-later",
+        "Name": "Sethu",
+        "Version": "0.1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-Provides": [
+        "org.kde.plasma.virtualdesktops"
+    ]
+}

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    SPDX-FileCopyrightText: 2026 Pranshul Pandey
+
+    SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <kcfgfile name=""/>
+    <group name="Appearance">
+        <entry name="preset" type="String">
+            <default>dots</default>
+        </entry>
+        <entry name="style" type="String">
+            <default>mixed</default>
+        </entry>
+        <entry name="labelMode" type="String">
+            <default>none</default>
+        </entry>
+        <entry name="indexPrefix" type="String">
+            <default>d</default>
+        </entry>
+        <entry name="indexStart" type="Int">
+            <default>1</default>
+        </entry>
+        <entry name="dotSize" type="Int">
+            <default>10</default>
+        </entry>
+        <entry name="gap" type="Int">
+            <default>4</default>
+        </entry>
+        <entry name="occupancyStyle" type="String">
+            <default>dot</default>
+        </entry>
+        <entry name="showUrgent" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="showWindowCount" type="Bool">
+            <default>false</default>
+        </entry>
+        <entry name="useSystemColors" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="activeColor" type="String">
+            <default>#3daee9</default>
+        </entry>
+        <entry name="inactiveColor" type="String">
+            <default>#fcfcfc</default>
+        </entry>
+        <entry name="inactiveOpacity" type="Double">
+            <default>0.45</default>
+        </entry>
+        <entry name="animations" type="Bool">
+            <default>true</default>
+        </entry>
+    </group>
+    <group name="Behavior">
+        <entry name="hideWhenSingle" type="Bool">
+            <default>false</default>
+        </entry>
+        <entry name="scrollToSwitch" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="scrollWrap" type="String">
+            <default>system</default>
+        </entry>
+        <entry name="middleClick" type="String">
+            <default>add</default>
+        </entry>
+        <entry name="clickCurrent" type="String">
+            <default>overview</default>
+        </entry>
+        <entry name="manageDesktops" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="tooltips" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="filterByScreen" type="Bool">
+            <default>false</default>
+        </entry>
+        <entry name="filterByActivity" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="includeAllDesktopsWindows" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="includeMinimized" type="Bool">
+            <default>true</default>
+        </entry>
+    </group>
+</kcfg>
