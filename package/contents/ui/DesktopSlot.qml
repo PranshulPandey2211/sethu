@@ -36,6 +36,8 @@ Item {
 
     Rectangle {
         visible: !slot.overlay && slot.pagerItem.style === "buttons"
+        x: contentBox.x
+        y: contentBox.y
         width: slot.pagerItem.contentW
         height: slot.pagerItem.contentH
         radius: Math.min(6, Math.min(width, height) / 3)
@@ -50,8 +52,8 @@ Item {
 
     Rectangle {
         visible: !slot.overlay && slot.pagerItem.style !== "buttons" && !slot.active
-        x: (slot.pagerItem.contentW - width) / 2
-        y: (slot.pagerItem.contentH - height) / 2
+        x: contentBox.x + (contentBox.width - width) / 2
+        y: contentBox.y + (contentBox.height - height) / 2
         width: slot.shapeW
         height: slot.shapeH
         radius: height / 2
@@ -76,6 +78,8 @@ Item {
 
     Item {
         id: contentBox
+        x: (slot.width - width) / 2
+        y: (slot.height - height) / 2
         width: slot.pagerItem.contentW
         height: slot.pagerItem.contentH
     }
@@ -86,34 +90,36 @@ Item {
         height: width
         radius: width / 2
         color: slot.urgent ? slot.pagerItem.urgentColor : slot.pagerItem.activeColor
-        x: slot.pagerItem.vertical
-            ? slot.pagerItem.contentW + Math.max(1, (slot.pagerItem.markSpace - width) / 2)
-            : (contentBox.width - width) / 2
-        y: slot.pagerItem.vertical
+        x: contentBox.x + (slot.pagerItem.vertical
+            ? contentBox.width - width - Math.max(1, slot.pagerItem.dot * 0.12)
+            : (contentBox.width - width) / 2)
+        y: contentBox.y + (slot.pagerItem.vertical
             ? (contentBox.height - height) / 2
-            : slot.pagerItem.contentH + Math.max(1, (slot.pagerItem.markSpace - height) / 2)
+            : contentBox.height - height - Math.max(1, slot.pagerItem.dot * 0.12))
     }
 
     Rectangle {
         visible: slot.overlay && slot.pagerItem.occupancyStyle === "underline" && slot.occupied
         color: slot.urgent ? slot.pagerItem.urgentColor : slot.pagerItem.activeColor
         radius: 1
-        x: slot.pagerItem.vertical ? slot.pagerItem.contentW : contentBox.width * 0.18
-        y: slot.pagerItem.vertical ? contentBox.height * 0.18 : slot.pagerItem.contentH + Math.max(0, slot.pagerItem.markSpace - 3)
-        width: slot.pagerItem.vertical ? Math.max(2, slot.pagerItem.markSpace - 2) : contentBox.width * 0.64
+        x: contentBox.x + (slot.pagerItem.vertical ? contentBox.width - 2 : contentBox.width * 0.18)
+        y: contentBox.y + (slot.pagerItem.vertical ? contentBox.height * 0.18 : contentBox.height - height - 1)
+        width: slot.pagerItem.vertical ? 2 : contentBox.width * 0.64
         height: slot.pagerItem.vertical ? contentBox.height * 0.64 : 2
     }
 
     Text {
         visible: slot.overlay && slot.pagerItem.showWindowCount && slot.windowCount > 0
         text: slot.windowCount > 99 ? "99" : String(slot.windowCount)
-        color: slot.urgent ? slot.pagerItem.urgentColor : slot.pagerItem.inactiveColor
+        color: slot.active
+            ? slot.pagerItem.labelOnActive
+            : (slot.urgent ? slot.pagerItem.urgentColor : slot.pagerItem.inactiveColor)
         font.pixelSize: Math.max(8, Math.round(slot.pagerItem.dot * 0.55))
         font.weight: Font.DemiBold
-        x: slot.pagerItem.vertical ? slot.pagerItem.contentW : 0
-        y: slot.pagerItem.vertical ? 0 : slot.pagerItem.contentH
-        width: slot.pagerItem.vertical ? slot.pagerItem.markSpace : contentBox.width
-        height: slot.pagerItem.vertical ? contentBox.height : slot.pagerItem.markSpace
+        x: contentBox.x
+        y: contentBox.y
+        width: contentBox.width
+        height: contentBox.height
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
     }

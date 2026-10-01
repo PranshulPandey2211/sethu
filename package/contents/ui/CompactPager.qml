@@ -9,6 +9,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.core as PlasmaCore
+import org.kde.plasma.extras as PlasmaExtras
 import org.kde.plasma.plasmoid
 
 Item {
@@ -53,10 +54,8 @@ Item {
         return Number.isFinite(value) ? Math.max(0, value) : 4
     }
     readonly property real pad: Math.round(Kirigami.Units.smallSpacing / 2)
-    readonly property bool wantsMark: occupancyStyle === "dot" || occupancyStyle === "underline" || showWindowCount
-    readonly property real markSpace: wantsMark ? Math.round(Math.max(5, dot * 0.42)) : 0
     readonly property real contentCross: labeled ? Math.max(dot, Math.ceil(fontMetrics.height + 4)) : dot
-    readonly property real slotCross: contentCross + markSpace
+    readonly property real slotCross: contentCross
     readonly property real contentW: vertical ? contentCross : slotMain
     readonly property real contentH: vertical ? slotMain : contentCross
     readonly property font labelFont: Qt.font({
@@ -145,13 +144,13 @@ Item {
             const item = shapes.itemAt(desktopModel.currentIndex)
             if (!item)
                 return pager.pad
-            return item.x + (pager.contentW - width) / 2
+            return item.x + (item.width - width) / 2
         }
         y: {
             const item = shapes.itemAt(desktopModel.currentIndex)
             if (!item)
                 return pager.pad
-            return item.y + (pager.contentH - height) / 2
+            return item.y + (item.height - height) / 2
         }
         Behavior on x {
             enabled: indicator.ready && pager.animations
@@ -191,28 +190,30 @@ Item {
         }
     }
 
-    QQC2.Menu {
+    PlasmaExtras.Menu {
         id: desktopMenu
         property int desktopIndex: 0
-        QQC2.MenuItem {
+        PlasmaExtras.MenuItem {
             text: i18n("Rename")
             enabled: Plasmoid.configuration.manageDesktops
-            onTriggered: renamePopup.openFor(desktopMenu.desktopIndex)
+            onClicked: renamePopup.openFor(desktopMenu.desktopIndex)
         }
-        QQC2.MenuItem {
+        PlasmaExtras.MenuItem {
             text: i18n("Add Desktop")
             enabled: Plasmoid.configuration.manageDesktops
-            onTriggered: desktopModel.addDesktop()
+            onClicked: desktopModel.addDesktop()
         }
-        QQC2.MenuItem {
+        PlasmaExtras.MenuItem {
             text: i18n("Remove Desktop")
             enabled: Plasmoid.configuration.manageDesktops && desktopModel.desktopCount > 1
-            onTriggered: desktopModel.removeAt(desktopMenu.desktopIndex)
+            onClicked: desktopModel.removeAt(desktopMenu.desktopIndex)
         }
-        QQC2.MenuSeparator {}
-        QQC2.MenuItem {
+        PlasmaExtras.MenuItem {
+            separator: true
+        }
+        PlasmaExtras.MenuItem {
             text: i18n("Configure Sethu…")
-            onTriggered: {
+            onClicked: {
                 const action = Plasmoid.internalAction("configure")
                 if (action)
                     action.trigger()
@@ -269,7 +270,7 @@ Item {
 
     function openDesktopMenu(index, item, mouse) {
         desktopMenu.desktopIndex = index
-        const pos = item.mapToItem(pager, mouse.x, mouse.y)
-        desktopMenu.popup(pos.x, pos.y)
+        desktopMenu.visualParent = item
+        desktopMenu.open(mouse.x, mouse.y)
     }
 }
