@@ -24,7 +24,7 @@ Item {
     property var occupancy: ({})
     property real wheelBuffer: 0
 
-    function screenDesktop() {
+    readonly property var currentId: {
         const fallback = info.currentDesktop
         if (screenGeometry.width <= 0 || screenGeometry.height <= 0)
             return fallback
@@ -37,8 +37,6 @@ Item {
         }
         return fallback
     }
-
-    readonly property var currentId: screenDesktop()
 
     readonly property int currentIndex: {
         const key = String(currentId)

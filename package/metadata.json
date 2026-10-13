@@ -7,7 +7,7 @@
             }
         ],
         "Category": "Windows and Tasks",
-        "Description": "Compact virtual desktop pager with dot, pill, button, number, and name styles",
+        "Description": "Compact virtual desktop pager with a custom shape, icon, and labels",
         "EnabledByDefault": true,
         "Icon": "preferences-desktop-virtual",
         "Id": "dev.pransh.sethu",

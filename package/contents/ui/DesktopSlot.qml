@@ -5,6 +5,7 @@
 */
 
 import QtQuick
+import org.kde.kirigami as Kirigami
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
 
@@ -23,10 +24,7 @@ Item {
     readonly property int windowCount: entry !== null ? entry.count : 0
     readonly property string label: pagerItem.labelFor(index)
     readonly property point origin: pagerItem.slotOrigin(index)
-    readonly property bool capsule: pagerItem.style === "pills"
-    readonly property real idleDot: pagerItem.style === "dots" ? pagerItem.dot * 0.62 : pagerItem.dot
-    readonly property real shapeW: capsule ? pagerItem.contentW : idleDot
-    readonly property real shapeH: capsule ? pagerItem.contentH : idleDot
+    property real attention: 1
 
     x: origin.x
     y: origin.y
@@ -35,34 +33,28 @@ Item {
     z: overlay ? 2 : 0
 
     Rectangle {
-        visible: !slot.overlay && slot.pagerItem.style === "buttons"
-        x: contentBox.x
-        y: contentBox.y
-        width: slot.pagerItem.contentW
-        height: slot.pagerItem.contentH
-        radius: Math.min(6, Math.min(width, height) / 3)
-        color: slot.active
-            ? slot.pagerItem.activeColor
-            : Qt.rgba(slot.pagerItem.inactiveColor.r, slot.pagerItem.inactiveColor.g, slot.pagerItem.inactiveColor.b, slot.pagerItem.inactiveOpacity * 0.55)
-        border.width: slot.active ? 0 : 1
+        visible: !slot.overlay && !slot.active
+        anchors.centerIn: parent
+        width: slot.pagerItem.inactiveW
+        height: slot.pagerItem.inactiveH
+        radius: slot.pagerItem.inactiveRadius
+        color: slot.pagerItem.inactiveColor
+        opacity: slot.pagerItem.inactiveOpacity * (slot.urgent && slot.pagerItem.occupancyStyle === "outline" ? slot.attention : 1)
+        border.width: slot.pagerItem.inactiveBorderWidth
         border.color: slot.occupied && slot.pagerItem.occupancyStyle === "outline"
             ? (slot.urgent ? slot.pagerItem.urgentColor : slot.pagerItem.activeColor)
-            : Qt.rgba(slot.pagerItem.inactiveColor.r, slot.pagerItem.inactiveColor.g, slot.pagerItem.inactiveColor.b, 0.35)
+            : slot.pagerItem.inactiveBorderColor
     }
 
-    Rectangle {
-        visible: !slot.overlay && slot.pagerItem.style !== "buttons" && !slot.active
-        x: contentBox.x + (contentBox.width - width) / 2
-        y: contentBox.y + (contentBox.height - height) / 2
-        width: slot.shapeW
-        height: slot.shapeH
-        radius: height / 2
-        color: slot.capsule ? "transparent" : slot.pagerItem.inactiveColor
-        opacity: slot.capsule ? 1 : slot.pagerItem.inactiveOpacity
-        border.width: slot.capsule || (slot.occupied && slot.pagerItem.occupancyStyle === "outline") ? 1 : 0
-        border.color: slot.occupied && slot.pagerItem.occupancyStyle === "outline"
-            ? (slot.urgent ? slot.pagerItem.urgentColor : slot.pagerItem.activeColor)
-            : Qt.rgba(slot.pagerItem.inactiveColor.r, slot.pagerItem.inactiveColor.g, slot.pagerItem.inactiveColor.b, slot.pagerItem.inactiveOpacity)
+    Kirigami.Icon {
+        visible: slot.overlay && slot.pagerItem.hasIcon
+        anchors.centerIn: contentBox
+        width: Math.max(4, contentBox.width - slot.pagerItem.inactiveBorderWidth * 2)
+        height: Math.max(4, contentBox.height - slot.pagerItem.inactiveBorderWidth * 2)
+        source: slot.pagerItem.customIcon
+        isMask: !slot.pagerItem.iconIsFile
+        color: slot.active ? slot.pagerItem.labelOnActive : slot.pagerItem.inactiveColor
+        opacity: slot.active ? 1 : slot.pagerItem.inactiveOpacity
     }
 
     Text {
@@ -86,20 +78,22 @@ Item {
 
     Rectangle {
         visible: slot.overlay && slot.pagerItem.occupancyStyle === "dot" && slot.occupied && !slot.pagerItem.showWindowCount
-        width: Math.max(3, Math.round(slot.pagerItem.dot * 0.28))
+        width: Math.max(3, Math.round(Math.min(slot.pagerItem.inactiveW, slot.pagerItem.inactiveH) * 0.28))
         height: width
         radius: width / 2
+        opacity: slot.urgent ? slot.attention : 1
         color: slot.urgent ? slot.pagerItem.urgentColor : slot.pagerItem.activeColor
         x: contentBox.x + (slot.pagerItem.vertical
-            ? contentBox.width - width - Math.max(1, slot.pagerItem.dot * 0.12)
+            ? contentBox.width - width - Math.max(1, Math.min(slot.pagerItem.inactiveW, slot.pagerItem.inactiveH) * 0.12)
             : (contentBox.width - width) / 2)
         y: contentBox.y + (slot.pagerItem.vertical
             ? (contentBox.height - height) / 2
-            : contentBox.height - height - Math.max(1, slot.pagerItem.dot * 0.12))
+            : contentBox.height - height - Math.max(1, Math.min(slot.pagerItem.inactiveW, slot.pagerItem.inactiveH) * 0.12))
     }
 
     Rectangle {
         visible: slot.overlay && slot.pagerItem.occupancyStyle === "underline" && slot.occupied
+        opacity: slot.urgent ? slot.attention : 1
         color: slot.urgent ? slot.pagerItem.urgentColor : slot.pagerItem.activeColor
         radius: 1
         x: contentBox.x + (slot.pagerItem.vertical ? contentBox.width - 2 : contentBox.width * 0.18)
@@ -114,7 +108,8 @@ Item {
         color: slot.active
             ? slot.pagerItem.labelOnActive
             : (slot.urgent ? slot.pagerItem.urgentColor : slot.pagerItem.inactiveColor)
-        font.pixelSize: Math.max(8, Math.round(slot.pagerItem.dot * 0.55))
+        font.pixelSize: Math.max(8, Math.round(Math.min(slot.pagerItem.cellW, slot.pagerItem.cellH) * 0.55))
+        opacity: slot.urgent ? slot.attention : 1
         font.weight: Font.DemiBold
         x: contentBox.x
         y: contentBox.y
@@ -136,7 +131,26 @@ Item {
             acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
             Accessible.name: slot.desktops.desktopName(slot.index)
             Accessible.role: Accessible.Button
+            property bool dragged: false
+            property real pressMain: 0
+            onPressed: (mouse) => {
+                dragged = false
+                const p = mapToItem(slot.pagerItem, mouse.x, mouse.y)
+                pressMain = slot.pagerItem.vertical ? p.y : p.x
+            }
+            onPositionChanged: (mouse) => {
+                if (!(mouse.buttons & Qt.LeftButton))
+                    return
+                const p = mapToItem(slot.pagerItem, mouse.x, mouse.y)
+                const main = slot.pagerItem.vertical ? p.y : p.x
+                if (!dragged && Math.abs(main - pressMain) < 6)
+                    return
+                dragged = true
+                slot.pagerItem.scrubAt(p.x, p.y)
+            }
             onClicked: (mouse) => {
+                if (dragged && mouse.button === Qt.LeftButton)
+                    return
                 if (mouse.button === Qt.LeftButton)
                     slot.desktops.leftClick(slot.index)
                 else if (mouse.button === Qt.MiddleButton)
@@ -149,5 +163,13 @@ Item {
                 wheel.accepted = true
             }
         }
+    }
+
+    SequentialAnimation {
+        running: slot.urgent && slot.pagerItem.animations
+        loops: Animation.Infinite
+        NumberAnimation { target: slot; property: "attention"; to: 0.35; duration: 700; easing.type: Easing.InOutSine }
+        NumberAnimation { target: slot; property: "attention"; to: 1; duration: 700; easing.type: Easing.InOutSine }
+        onRunningChanged: if (!running) slot.attention = 1
     }
 }
