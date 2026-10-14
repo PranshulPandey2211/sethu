@@ -43,9 +43,6 @@ Item {
         return Number.isFinite(value) ? Math.max(0.15, Math.min(1, value)) : 1
     }
     readonly property bool animations: Plasmoid.configuration.animations
-    readonly property string customIcon: String(Plasmoid.configuration.customIcon || "")
-    readonly property bool hasIcon: customIcon.length > 0
-    readonly property bool iconIsFile: customIcon.indexOf("/") !== -1 || customIcon.indexOf("file:") === 0
     readonly property real inactiveBorderWidth: Math.max(0, Number(Plasmoid.configuration.inactiveBorderWidth) || 0)
     readonly property color inactiveBorderColor: Plasmoid.configuration.inactiveBorderColor || inactiveColor
     readonly property real activeBorderWidth: Math.max(0, Number(Plasmoid.configuration.activeBorderWidth) || 0)
@@ -53,7 +50,10 @@ Item {
     readonly property string occupancyStyle: Plasmoid.configuration.occupancyStyle || "dot"
     readonly property bool showWindowCount: Plasmoid.configuration.showWindowCount
     readonly property bool tooltips: Plasmoid.configuration.tooltips
+    readonly property bool dragToSwitch: Plasmoid.configuration.dragToSwitch
     readonly property int shown: Math.max(desktopCount, 1)
+    property int hoveredIndex: -1
+    property bool popupContainsMouse: false
 
     function cappedRadius(w, h, raw) {
         const cap = Math.min(w, h) / 2
@@ -77,18 +77,57 @@ Item {
         const value = Number(Plasmoid.configuration.margin)
         return Number.isFinite(value) ? Math.max(0, value) : 2
     }
-    readonly property real contentW: cellW
-    readonly property real contentH: cellH
     readonly property font labelFont: Qt.font({
         family: Kirigami.Theme.defaultFont.family,
         pixelSize: Math.max(8, Math.round(Math.min(cellW, cellH) * 0.7)),
         weight: Font.Medium
     })
-    readonly property real slotMain: vertical ? cellH : cellW
-    readonly property real slotCross: vertical ? cellW : cellH
-    readonly property real slotW: cellW
-    readonly property real slotH: cellH
-    readonly property real stripLength: shown * slotMain + Math.max(0, shown - 1) * gap
+
+    function chipSize(index, active) {
+        const fontSize = labelFont.pixelSize
+        let w = active ? activeW : inactiveW
+        let h = active ? activeH : inactiveH
+        const text = labelFor(index)
+        if (text.length > 0) {
+            const pad = Math.max(6, Math.round(Math.min(inactiveH, activeH) * 0.35))
+            w = Math.max(w, Math.ceil(fontMetrics.advanceWidth(text)) + pad * 2)
+            h = Math.max(h, Math.ceil(fontMetrics.height), fontSize)
+        }
+        return { width: w, height: h }
+    }
+
+    function slotSizeAt(index) {
+        const inactive = chipSize(index, false)
+        const active = chipSize(index, true)
+        return {
+            width: Math.max(inactive.width, active.width),
+            height: Math.max(inactive.height, active.height)
+        }
+    }
+
+    function mainExtent(index) {
+        const sz = slotSizeAt(index)
+        return vertical ? sz.height : sz.width
+    }
+
+    readonly property real stripLength: {
+        const n = shown
+        let length = 0
+        for (let i = 0; i < n; ++i)
+            length += mainExtent(i)
+        if (n > 1)
+            length += (n - 1) * gap
+        return length
+    }
+    readonly property real stripCross: {
+        const n = shown
+        let cross = 0
+        for (let i = 0; i < n; ++i) {
+            const sz = slotSizeAt(i)
+            cross = Math.max(cross, vertical ? sz.width : sz.height)
+        }
+        return Math.max(cross, 4)
+    }
 
     function labelFor(index) {
         if (labelMode === "name")
@@ -99,25 +138,38 @@ Item {
     }
 
     readonly property real stripOffsetX: {
-        const slack = width - (vertical ? slotW : stripLength) - pad * 2
+        const slack = width - (vertical ? stripCross : stripLength) - pad * 2
         return pad + Math.max(0, slack) / 2
     }
     readonly property real stripOffsetY: {
-        const slack = height - (vertical ? stripLength : slotH) - pad * 2
+        const slack = height - (vertical ? stripLength : stripCross) - pad * 2
         return pad + Math.max(0, slack) / 2
     }
 
+    function extentBefore(index) {
+        let total = 0
+        if (rtl) {
+            for (let i = shown - 1; i > index; --i)
+                total += mainExtent(i) + gap
+        } else {
+            for (let i = 0; i < index; ++i)
+                total += mainExtent(i) + gap
+        }
+        return total
+    }
+
     function slotOrigin(index) {
-        const main = index * (slotMain + gap)
-        const visual = rtl ? (shown - 1 - index) * (slotMain + gap) : main
+        const sz = slotSizeAt(index)
+        const before = extentBefore(index)
+        const cross = vertical ? (stripCross - sz.width) / 2 : (stripCross - sz.height) / 2
         if (vertical)
-            return Qt.point(Math.round(stripOffsetX), Math.round(stripOffsetY + visual))
-        return Qt.point(Math.round(stripOffsetX + visual), Math.round(stripOffsetY))
+            return Qt.point(Math.round(stripOffsetX + cross), Math.round(stripOffsetY + before))
+        return Qt.point(Math.round(stripOffsetX + before), Math.round(stripOffsetY + cross))
     }
 
     property bool settled: false
-    implicitWidth: (vertical ? slotCross : stripLength) + pad * 2
-    implicitHeight: (vertical ? stripLength : slotCross) + pad * 2
+    implicitWidth: (vertical ? stripCross : stripLength) + pad * 2
+    implicitHeight: (vertical ? stripLength : stripCross) + pad * 2
     Behavior on implicitWidth {
         enabled: settled && animations
         NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
@@ -170,8 +222,9 @@ Item {
         border.color: pager.activeBorderColor
         property bool canAnimate: false
         property bool layoutReady: false
-        width: pager.activeW
-        height: pager.activeH
+        readonly property var pill: pager.activeSlot ? pager.chipSize(desktopModel.currentIndex, true) : null
+        width: pill ? pill.width : pager.activeW
+        height: pill ? pill.height : pager.activeH
         x: pager.activeSlot ? Math.round(pager.activeSlot.x + (pager.activeSlot.width - width) / 2) : 0
         y: pager.activeSlot ? Math.round(pager.activeSlot.y + (pager.activeSlot.height - height) / 2) : 0
         Behavior on x {
@@ -182,6 +235,20 @@ Item {
             }
         }
         Behavior on y {
+            enabled: indicator.canAnimate && pager.animations
+            NumberAnimation {
+                duration: Kirigami.Units.shortDuration
+                easing.type: Easing.OutCubic
+            }
+        }
+        Behavior on width {
+            enabled: indicator.canAnimate && pager.animations
+            NumberAnimation {
+                duration: Kirigami.Units.shortDuration
+                easing.type: Easing.OutCubic
+            }
+        }
+        Behavior on height {
             enabled: indicator.canAnimate && pager.animations
             NumberAnimation {
                 duration: Kirigami.Units.shortDuration
@@ -316,13 +383,158 @@ Item {
     }
 
     function desktopAt(px, py) {
+        const n = desktopCount
+        if (n < 1)
+            return 0
         let pos = (vertical ? py : px) - (vertical ? stripOffsetY : stripOffsetX)
         if (rtl)
             pos = stripLength - pos
-        const stride = slotMain + gap
-        if (stride <= 0 || desktopCount < 1)
+        if (pos <= 0)
             return 0
-        return Math.max(0, Math.min(desktopCount - 1, Math.floor(pos / stride)))
+        let cursor = 0
+        for (let i = 0; i < n; ++i) {
+            const ext = mainExtent(i)
+            if (pos < cursor + ext + gap / 2)
+                return i
+            cursor += ext + gap
+        }
+        return n - 1
+    }
+
+    function hoverSlot(index, inside) {
+        if (inside) {
+            hoveredIndex = index
+            windowPopupCloseTimer.stop()
+            const entry = desktopModel.infoFor(index)
+            if (entry && entry.windows && entry.windows.length > 0) {
+                windowPopupTimer.desktopIndex = index
+                windowPopupTimer.restart()
+            } else {
+                windowPopupTimer.stop()
+                windowPopup.close()
+            }
+        } else if (hoveredIndex === index) {
+            hoveredIndex = -1
+            windowPopupTimer.stop()
+            windowPopupCloseTimer.restart()
+        }
+    }
+
+    function showWindowPopup(index) {
+        const entry = desktopModel.infoFor(index)
+        if (!entry || !entry.windows || entry.windows.length < 1) {
+            windowPopup.close()
+            return
+        }
+        windowPopup.desktopIndex = index
+        Qt.callLater(function() {
+            if (windowPopup.desktopIndex !== index)
+                return
+            positionWindowPopup(index)
+            if (!windowPopup.opened)
+                windowPopup.open()
+        })
+    }
+
+    function positionWindowPopup(index) {
+        const item = hits.itemAt(index)
+        if (!item)
+            return
+        const margin = 4
+        let px = item.x
+        let py = item.y + item.height - margin
+        const loc = Plasmoid.location
+        if (loc === PlasmaCore.Types.BottomEdge)
+            py = item.y - windowPopup.implicitHeight + margin
+        else if (loc === PlasmaCore.Types.LeftEdge) {
+            px = item.x + item.width - margin
+            py = item.y
+        } else if (loc === PlasmaCore.Types.RightEdge) {
+            px = item.x - windowPopup.implicitWidth + margin
+            py = item.y
+        }
+        windowPopup.x = Math.round(px)
+        windowPopup.y = Math.round(py)
+    }
+
+    function closeWindowPopup() {
+        windowPopupTimer.stop()
+        windowPopupCloseTimer.stop()
+        windowPopup.close()
+    }
+
+    Timer {
+        id: windowPopupTimer
+        interval: 400
+        property int desktopIndex: -1
+        onTriggered: pager.showWindowPopup(desktopIndex)
+    }
+
+    Timer {
+        id: windowPopupCloseTimer
+        interval: 220
+        onTriggered: {
+            if (!pager.popupContainsMouse)
+                windowPopup.close()
+        }
+    }
+
+    QQC2.Popup {
+        id: windowPopup
+        z: 10
+        modal: false
+        focus: false
+        padding: Kirigami.Units.smallSpacing
+        popupType: QQC2.Popup.Window
+        closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
+        property int desktopIndex: -1
+        readonly property var entry: desktopIndex >= 0 ? desktopModel.infoFor(desktopIndex) : null
+        readonly property var windows: entry && entry.windows ? entry.windows : []
+        implicitWidth: Kirigami.Units.gridUnit * 12
+        implicitHeight: windowPopupBody.implicitHeight + padding * 2
+
+        Column {
+            id: windowPopupBody
+            width: windowPopup.implicitWidth - windowPopup.padding * 2
+            spacing: Kirigami.Units.smallSpacing
+
+            HoverHandler {
+                onHoveredChanged: {
+                    pager.popupContainsMouse = hovered
+                    if (hovered)
+                        windowPopupCloseTimer.stop()
+                    else
+                        windowPopupCloseTimer.restart()
+                }
+            }
+
+            QQC2.Label {
+                width: parent.width
+                elide: Text.ElideRight
+                font.weight: Font.DemiBold
+                text: windowPopup.desktopIndex >= 0 ? desktopModel.desktopName(windowPopup.desktopIndex) : ""
+            }
+
+            Repeater {
+                model: windowPopup.windows
+                delegate: QQC2.ItemDelegate {
+                    required property var modelData
+                    width: windowPopupBody.width
+                    text: modelData.title
+                    icon.name: modelData.urgent ? "dialog-warning" : ""
+                    onClicked: {
+                        desktopModel.activateWindow(modelData.winId)
+                        pager.closeWindowPopup()
+                    }
+                }
+            }
+
+            QQC2.Label {
+                width: parent.width
+                visible: windowPopup.entry && windowPopup.entry.count > windowPopup.windows.length
+                text: windowPopup.entry ? i18n("+%1 more", Math.max(0, windowPopup.entry.count - windowPopup.windows.length)) : ""
+            }
+        }
     }
 
     function scrubAt(px, py) {

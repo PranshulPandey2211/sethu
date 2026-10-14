@@ -14,7 +14,7 @@
             <default>none</default>
         </entry>
         <entry name="indexPrefix" type="String">
-            <default>d</default>
+            <default></default>
         </entry>
         <entry name="indexStart" type="Int">
             <default>1</default>
@@ -92,6 +92,9 @@
         </entry>
         <entry name="scrollToSwitch" type="Bool">
             <default>true</default>
+        </entry>
+        <entry name="dragToSwitch" type="Bool">
+            <default>false</default>
         </entry>
         <entry name="scrollWrap" type="String">
             <default>system</default>

@@ -202,16 +202,39 @@ Item {
             toggleOverview()
     }
 
+    function winIdAt(value) {
+        if (value === undefined || value === null)
+            return ""
+        if (typeof value === "number" || typeof value === "string")
+            return String(value)
+        const first = value[0]
+        if (first === undefined || first === null)
+            return ""
+        return String(first)
+    }
+
+    function activateWindow(winId) {
+        const target = String(winId)
+        if (target.length === 0)
+            return
+        const roleWin = TaskManager.AbstractTasksModel.WinIdList
+        const rows = tasks.count
+        for (let i = 0; i < rows; ++i) {
+            const idx = tasks.index(i, 0)
+            if (winIdAt(tasks.data(idx, roleWin)) !== target)
+                continue
+            tasks.requestActivate(idx)
+            return
+        }
+    }
+
     function tooltipBody(index) {
+        if (index === currentIndex)
+            return i18n("Current desktop")
         const entry = infoFor(index)
-        if (!entry || entry.count < 1)
-            return index === currentIndex ? i18n("Current desktop") : ""
-        const lines = entry.titles.slice()
-        if (entry.urgent)
-            lines.unshift(i18n("Needs attention"))
-        if (entry.count > entry.titles.length)
-            lines.push(i18n("+%1 more", entry.count - entry.titles.length))
-        return lines.join("\n")
+        if (entry && entry.urgent)
+            return i18n("Needs attention")
+        return ""
     }
 
     function rebuildOccupancy() {
@@ -221,6 +244,7 @@ Item {
         const roleUrgent = TaskManager.AbstractTasksModel.IsDemandingAttention
         const roleSkip = TaskManager.AbstractTasksModel.SkipPager
         const roleApp = TaskManager.AbstractTasksModel.AppName
+        const roleWin = TaskManager.AbstractTasksModel.WinIdList
         const next = {}
         const allIds = ids ? ids : []
         const includeAll = Plasmoid.configuration.includeAllDesktopsWindows
@@ -233,6 +257,7 @@ Item {
             if (tasks.data(idx, roleSkip))
                 continue
             const title = String(tasks.data(idx, 0) || tasks.data(idx, roleApp) || "")
+            const winId = model.winIdAt(tasks.data(idx, roleWin))
             const urgent = showUrgent && !!tasks.data(idx, roleUrgent)
             const onAll = includeAll && !!tasks.data(idx, roleAll)
             let desks = tasks.data(idx, roleDesktops)
@@ -244,14 +269,19 @@ Item {
                     continue
                 let slot = next[key]
                 if (!slot) {
-                    slot = { count: 0, urgent: false, titles: [] }
+                    slot = { count: 0, urgent: false, windows: [] }
                     next[key] = slot
                 }
                 slot.count += 1
                 if (urgent)
                     slot.urgent = true
-                if (slot.titles.length < 8 && title.length > 0)
-                    slot.titles.push(title)
+                if (winId.length > 0 && slot.windows.length < 8) {
+                    slot.windows.push({
+                        title: title.length > 0 ? title : i18n("Unnamed window"),
+                        winId: winId,
+                        urgent: urgent
+                    })
+                }
             }
         }
         occupancy = next
@@ -276,10 +306,11 @@ Item {
                 const roleAll = TaskManager.AbstractTasksModel.IsOnAllVirtualDesktops
                 const roleUrgent = TaskManager.AbstractTasksModel.IsDemandingAttention
                 const roleSkip = TaskManager.AbstractTasksModel.SkipPager
+                const roleWin = TaskManager.AbstractTasksModel.WinIdList
                 let relevant = false
                 for (let i = 0; i < roles.length; ++i) {
                     const role = roles[i]
-                    if (role === 0 || role === roleWindow || role === roleDesktops || role === roleAll || role === roleUrgent || role === roleSkip) {
+                    if (role === 0 || role === roleWindow || role === roleDesktops || role === roleAll || role === roleUrgent || role === roleSkip || role === roleWin) {
                         relevant = true
                         break
                     }

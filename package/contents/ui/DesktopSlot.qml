@@ -5,7 +5,6 @@
 */
 
 import QtQuick
-import org.kde.kirigami as Kirigami
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
 
@@ -23,38 +22,33 @@ Item {
     readonly property bool urgent: entry !== null && entry.urgent
     readonly property int windowCount: entry !== null ? entry.count : 0
     readonly property string label: pagerItem.labelFor(index)
+    readonly property int listedWindows: entry && entry.windows ? entry.windows.length : 0
     readonly property point origin: pagerItem.slotOrigin(index)
+    readonly property var slotSize: pagerItem.slotSizeAt(index)
+    readonly property var inactiveChip: pagerItem.chipSize(index, false)
+    readonly property bool hot: !active && pagerItem.hoveredIndex === index
     property real attention: 1
 
     x: origin.x
     y: origin.y
-    width: pagerItem.slotW
-    height: pagerItem.slotH
+    width: slotSize.width
+    height: slotSize.height
     z: overlay ? 2 : 0
 
     Rectangle {
         visible: !slot.overlay && !slot.active
         anchors.centerIn: parent
-        width: slot.pagerItem.inactiveW
-        height: slot.pagerItem.inactiveH
+        width: slot.inactiveChip.width
+        height: slot.inactiveChip.height
         radius: slot.pagerItem.inactiveRadius
-        color: slot.pagerItem.inactiveColor
-        opacity: slot.pagerItem.inactiveOpacity * (slot.urgent && slot.pagerItem.occupancyStyle === "outline" ? slot.attention : 1)
+        color: slot.hot ? Qt.lighter(slot.pagerItem.inactiveColor, 1.3) : slot.pagerItem.inactiveColor
+        opacity: Math.min(1, slot.pagerItem.inactiveOpacity
+            * (slot.hot ? 1.7 : 1)
+            * (slot.urgent && slot.pagerItem.occupancyStyle === "outline" ? slot.attention : 1))
         border.width: slot.pagerItem.inactiveBorderWidth
         border.color: slot.occupied && slot.pagerItem.occupancyStyle === "outline"
             ? (slot.urgent ? slot.pagerItem.urgentColor : slot.pagerItem.activeColor)
             : slot.pagerItem.inactiveBorderColor
-    }
-
-    Kirigami.Icon {
-        visible: slot.overlay && slot.pagerItem.hasIcon
-        anchors.centerIn: contentBox
-        width: Math.max(4, contentBox.width - slot.pagerItem.inactiveBorderWidth * 2)
-        height: Math.max(4, contentBox.height - slot.pagerItem.inactiveBorderWidth * 2)
-        source: slot.pagerItem.customIcon
-        isMask: !slot.pagerItem.iconIsFile
-        color: slot.active ? slot.pagerItem.labelOnActive : slot.pagerItem.inactiveColor
-        opacity: slot.active ? 1 : slot.pagerItem.inactiveOpacity
     }
 
     Text {
@@ -70,14 +64,11 @@ Item {
 
     Item {
         id: contentBox
-        x: (slot.width - width) / 2
-        y: (slot.height - height) / 2
-        width: slot.pagerItem.contentW
-        height: slot.pagerItem.contentH
+        anchors.fill: parent
     }
 
     Rectangle {
-        visible: slot.overlay && slot.pagerItem.occupancyStyle === "dot" && slot.occupied && !slot.pagerItem.showWindowCount
+        visible: slot.overlay && slot.label.length === 0 && !slot.pagerItem.showWindowCount && slot.pagerItem.occupancyStyle === "dot" && slot.occupied
         width: Math.max(3, Math.round(Math.min(slot.pagerItem.inactiveW, slot.pagerItem.inactiveH) * 0.28))
         height: width
         radius: width / 2
@@ -103,7 +94,7 @@ Item {
     }
 
     Text {
-        visible: slot.overlay && slot.pagerItem.showWindowCount && slot.windowCount > 0
+        visible: slot.overlay && slot.label.length === 0 && slot.pagerItem.showWindowCount && slot.windowCount > 0
         text: slot.windowCount > 99 ? "99" : String(slot.windowCount)
         color: slot.active
             ? slot.pagerItem.labelOnActive
@@ -122,7 +113,7 @@ Item {
     PlasmaCore.ToolTipArea {
         anchors.fill: parent
         visible: slot.overlay
-        enabled: slot.overlay && slot.pagerItem.tooltips
+        enabled: slot.overlay && slot.pagerItem.tooltips && slot.listedWindows === 0
         mainText: slot.desktops.desktopName(slot.index)
         subText: slot.desktops.tooltipBody(slot.index)
         location: Plasmoid.location
@@ -131,24 +122,28 @@ Item {
             acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
             Accessible.name: slot.desktops.desktopName(slot.index)
             Accessible.role: Accessible.Button
+            hoverEnabled: true
             property bool dragged: false
             property real pressMain: 0
+            onContainsMouseChanged: slot.pagerItem.hoverSlot(slot.index, containsMouse)
             onPressed: (mouse) => {
                 dragged = false
                 const p = mapToItem(slot.pagerItem, mouse.x, mouse.y)
                 pressMain = slot.pagerItem.vertical ? p.y : p.x
             }
             onPositionChanged: (mouse) => {
-                if (!(mouse.buttons & Qt.LeftButton))
+                if (!slot.pagerItem.dragToSwitch || !(mouse.buttons & Qt.LeftButton))
                     return
                 const p = mapToItem(slot.pagerItem, mouse.x, mouse.y)
                 const main = slot.pagerItem.vertical ? p.y : p.x
                 if (!dragged && Math.abs(main - pressMain) < 6)
                     return
                 dragged = true
+                slot.pagerItem.closeWindowPopup()
                 slot.pagerItem.scrubAt(p.x, p.y)
             }
             onClicked: (mouse) => {
+                slot.pagerItem.closeWindowPopup()
                 if (dragged && mouse.button === Qt.LeftButton)
                     return
                 if (mouse.button === Qt.LeftButton)

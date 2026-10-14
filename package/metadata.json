@@ -7,13 +7,13 @@
             }
         ],
         "Category": "Windows and Tasks",
-        "Description": "Compact virtual desktop pager with a custom shape, icon, and labels",
+        "Description": "Compact virtual desktop pager with a custom shape and labels",
         "EnabledByDefault": true,
         "Icon": "preferences-desktop-virtual",
         "Id": "dev.pransh.sethu",
         "License": "GPL-3.0-or-later",
         "Name": "Sethu",
-        "Version": "0.1.1"
+        "Version": "0.2.0"
     },
     "X-Plasma-API-Minimum-Version": "6.0",
     "X-Plasma-Provides": [

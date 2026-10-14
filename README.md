@@ -29,8 +29,13 @@ kpackagetool6 -t Plasma/Applet --upgrade package
 systemctl --user restart plasma-plasmashell
 ```
 
+Clean reinstall:
+```sh
+kpackagetool6 -t Plasma/Applet -r dev.pransh.sethu
+kpackagetool6 -t Plasma/Applet -i package
+systemctl --user restart plasma-plasmashell
+```
+
 ## Use
 
 Left click switches desktops. Clicking the current desktop opens Overview. The wheel switches desktops. Middle click adds a desktop. Right click renames, adds, or removes desktops.
-
-Size and spacing are pixel values. Labels are available on pills and buttons.

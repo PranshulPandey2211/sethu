@@ -6,6 +6,7 @@
 
 import QtQuick
 import QtQuick.Controls as QQC2
+import QtQuick.Layouts
 import org.kde.kcmutils as KCM
 import org.kde.kirigami as Kirigami
 
@@ -14,6 +15,7 @@ KCM.SimpleKCM {
 
     property bool cfg_hideWhenSingle: false
     property bool cfg_scrollToSwitch: true
+    property bool cfg_dragToSwitch: false
     property string cfg_scrollWrap: "system"
     property string cfg_middleClick: "add"
     property string cfg_clickCurrent: "overview"
@@ -43,6 +45,13 @@ KCM.SimpleKCM {
             onActivated: (i) => { root.cfg_scrollWrap = ids[i] }
         }
 
+        QQC2.CheckBox {
+            Kirigami.FormData.label: i18n("Drag")
+            text: i18n("Switch desktops by dragging along the strip")
+            checked: root.cfg_dragToSwitch
+            onToggled: root.cfg_dragToSwitch = checked
+        }
+
         QQC2.ComboBox {
             Kirigami.FormData.label: i18n("Click current desktop")
             model: [i18n("Open Overview"), i18n("Do nothing")]
@@ -68,7 +77,7 @@ KCM.SimpleKCM {
 
         QQC2.CheckBox {
             Kirigami.FormData.label: i18n("Tooltips")
-            text: i18n("Show the desktop name and window titles")
+            text: i18n("Show the desktop name")
             checked: root.cfg_tooltips
             onToggled: root.cfg_tooltips = checked
         }
@@ -80,37 +89,33 @@ KCM.SimpleKCM {
             onToggled: root.cfg_hideWhenSingle = checked
         }
 
-        Item {
-            Kirigami.FormData.isSection: true
-            Kirigami.FormData.label: i18n("Which windows count")
-        }
+        ColumnLayout {
+            Kirigami.FormData.label: i18n("Window marks")
+            spacing: Kirigami.Units.smallSpacing
 
-        QQC2.CheckBox {
-            Kirigami.FormData.label: i18n("Activity")
-            text: i18n("Only windows on the current activity")
-            checked: root.cfg_filterByActivity
-            onToggled: root.cfg_filterByActivity = checked
-        }
+            QQC2.CheckBox {
+                text: i18n("Only windows on the current activity")
+                checked: root.cfg_filterByActivity
+                onToggled: root.cfg_filterByActivity = checked
+            }
 
-        QQC2.CheckBox {
-            Kirigami.FormData.label: i18n("Screen")
-            text: i18n("Only windows on this screen")
-            checked: root.cfg_filterByScreen
-            onToggled: root.cfg_filterByScreen = checked
-        }
+            QQC2.CheckBox {
+                text: i18n("Only windows on this screen")
+                checked: root.cfg_filterByScreen
+                onToggled: root.cfg_filterByScreen = checked
+            }
 
-        QQC2.CheckBox {
-            Kirigami.FormData.label: i18n("All desktops")
-            text: i18n("Count windows that are on every desktop")
-            checked: root.cfg_includeAllDesktopsWindows
-            onToggled: root.cfg_includeAllDesktopsWindows = checked
-        }
+            QQC2.CheckBox {
+                text: i18n("Count windows that are on every desktop")
+                checked: root.cfg_includeAllDesktopsWindows
+                onToggled: root.cfg_includeAllDesktopsWindows = checked
+            }
 
-        QQC2.CheckBox {
-            Kirigami.FormData.label: i18n("Minimized")
-            text: i18n("Count minimized windows")
-            checked: root.cfg_includeMinimized
-            onToggled: root.cfg_includeMinimized = checked
+            QQC2.CheckBox {
+                text: i18n("Count minimized windows")
+                checked: root.cfg_includeMinimized
+                onToggled: root.cfg_includeMinimized = checked
+            }
         }
     }
 }
