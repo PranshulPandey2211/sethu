@@ -53,6 +53,7 @@ Item {
     readonly property bool dragToSwitch: Plasmoid.configuration.dragToSwitch
     readonly property int shown: Math.max(desktopCount, 1)
     property int hoveredIndex: -1
+    property Item hoverItem: null
     property bool popupContainsMouse: false
 
     function cappedRadius(w, h, raw) {
@@ -401,9 +402,10 @@ Item {
         return n - 1
     }
 
-    function hoverSlot(index, inside) {
+    function hoverSlot(index, item, inside) {
         if (inside) {
             hoveredIndex = index
+            hoverItem = item
             windowPopupCloseTimer.stop()
             const entry = desktopModel.infoFor(index)
             if (entry && entry.windows && entry.windows.length > 0) {
@@ -415,43 +417,71 @@ Item {
             }
         } else if (hoveredIndex === index) {
             hoveredIndex = -1
+            hoverItem = null
             windowPopupTimer.stop()
             windowPopupCloseTimer.restart()
         }
     }
 
     function showWindowPopup(index) {
+        const item = hoverItem
         const entry = desktopModel.infoFor(index)
-        if (!entry || !entry.windows || entry.windows.length < 1) {
+        if (!item || item.index !== index || !entry || !entry.windows || entry.windows.length < 1) {
             windowPopup.close()
             return
         }
         windowPopup.desktopIndex = index
         Qt.callLater(function() {
-            if (windowPopup.desktopIndex !== index)
+            if (windowPopup.desktopIndex !== index || hoverItem !== item)
                 return
-            positionWindowPopup(index)
+            positionWindowPopup(item)
             if (!windowPopup.opened)
                 windowPopup.open()
+            Qt.callLater(function() {
+                if (windowPopup.desktopIndex === index && hoverItem === item)
+                    positionWindowPopup(item)
+            })
         })
     }
 
-    function positionWindowPopup(index) {
-        const item = hits.itemAt(index)
-        if (!item)
-            return
-        const margin = 4
-        let px = item.x
-        let py = item.y + item.height - margin
+    function positionWindowPopup(item) {
+        const gap = 8
+        const w = windowPopup.implicitWidth
+        const h = Math.max(windowPopup.implicitHeight, 1)
+        const anchor = item.mapToItem(pager, 0, 0)
+        let px = anchor.x + (item.width - w) / 2
+        let py = anchor.y - h - gap
         const loc = Plasmoid.location
-        if (loc === PlasmaCore.Types.BottomEdge)
-            py = item.y - windowPopup.implicitHeight + margin
+        if (loc === PlasmaCore.Types.TopEdge)
+            py = anchor.y + item.height + gap
         else if (loc === PlasmaCore.Types.LeftEdge) {
-            px = item.x + item.width - margin
-            py = item.y
+            px = anchor.x + item.width + gap
+            py = anchor.y + (item.height - h) / 2
         } else if (loc === PlasmaCore.Types.RightEdge) {
-            px = item.x - windowPopup.implicitWidth + margin
-            py = item.y
+            px = anchor.x - w - gap
+            py = anchor.y + (item.height - h) / 2
+        }
+        const origin = pager.mapToGlobal(0, 0)
+        const geo = desktopModel.screenGeometry
+        if (geo.width > 0) {
+            const minX = geo.x + 8 - origin.x
+            const maxX = geo.x + geo.width - w - 8 - origin.x
+            px = Math.min(Math.max(px, minX), Math.max(minX, maxX))
+        }
+        if (geo.height > 0) {
+            const minY = geo.y + 8 - origin.y
+            const maxY = geo.y + geo.height - h - 8 - origin.y
+            py = Math.min(Math.max(py, minY), Math.max(minY, maxY))
+        }
+        const slotLeft = anchor.x
+        const slotRight = anchor.x + item.width
+        const slotTop = anchor.y
+        const slotBottom = anchor.y + item.height
+        if (px < slotRight && px + w > slotLeft && py < slotBottom && py + h > slotTop) {
+            if (loc === PlasmaCore.Types.TopEdge)
+                py = slotBottom + gap
+            else if (loc !== PlasmaCore.Types.LeftEdge && loc !== PlasmaCore.Types.RightEdge)
+                py = slotTop - h - gap
         }
         windowPopup.x = Math.round(px)
         windowPopup.y = Math.round(py)
@@ -472,7 +502,7 @@ Item {
 
     Timer {
         id: windowPopupCloseTimer
-        interval: 220
+        interval: 400
         onTriggered: {
             if (!pager.popupContainsMouse)
                 windowPopup.close()

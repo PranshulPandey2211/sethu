@@ -125,7 +125,7 @@ Item {
             hoverEnabled: true
             property bool dragged: false
             property real pressMain: 0
-            onContainsMouseChanged: slot.pagerItem.hoverSlot(slot.index, containsMouse)
+            onContainsMouseChanged: slot.pagerItem.hoverSlot(slot.index, slot, containsMouse)
             onPressed: (mouse) => {
                 dragged = false
                 const p = mapToItem(slot.pagerItem, mouse.x, mouse.y)
