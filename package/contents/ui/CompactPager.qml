@@ -168,6 +168,30 @@ Item {
         return Qt.point(Math.round(stripOffsetX + before), Math.round(stripOffsetY + cross))
     }
 
+    readonly property bool modelReady: {
+        const n = desktopModel.desktopCount
+        const list = desktopModel.ids
+        const current = desktopModel.currentId !== undefined && desktopModel.currentId !== null ? String(desktopModel.currentId) : ""
+        if (n < 1 || !list || list.length !== n || current.length === 0)
+            return false
+        for (let i = 0; i < list.length; ++i) {
+            if (String(list[i]) === current)
+                return true
+        }
+        return false
+    }
+    readonly property var indicatorGeo: {
+        const index = desktopModel.currentIndex
+        const pill = chipSize(index, true)
+        const origin = slotOrigin(index)
+        const sz = slotSizeAt(index)
+        return {
+            x: Math.round(origin.x + (sz.width - pill.width) / 2),
+            y: Math.round(origin.y + (sz.height - pill.height) / 2),
+            width: pill.width,
+            height: pill.height
+        }
+    }
     property bool settled: false
     implicitWidth: (vertical ? stripCross : stripLength) + pad * 2
     implicitHeight: (vertical ? stripLength : stripCross) + pad * 2
@@ -210,78 +234,74 @@ Item {
         }
     }
 
-    readonly property Item activeSlot: shapes.itemAt(desktopModel.currentIndex)
-
     Rectangle {
         id: indicator
         z: 1
-        visible: pager.activeSlot !== null
+        visible: pager.modelReady
         radius: pager.activeRadius
         color: pager.activeColor
         opacity: pager.activeOpacity
         border.width: pager.activeBorderWidth
         border.color: pager.activeBorderColor
-        property bool canAnimate: false
-        property bool layoutReady: false
-        readonly property var pill: pager.activeSlot ? pager.chipSize(desktopModel.currentIndex, true) : null
-        width: pill ? pill.width : pager.activeW
-        height: pill ? pill.height : pager.activeH
-        x: pager.activeSlot ? Math.round(pager.activeSlot.x + (pager.activeSlot.width - width) / 2) : 0
-        y: pager.activeSlot ? Math.round(pager.activeSlot.y + (pager.activeSlot.height - height) / 2) : 0
+        property bool ready: false
+        x: pager.indicatorGeo.x
+        y: pager.indicatorGeo.y
+        width: pager.indicatorGeo.width
+        height: pager.indicatorGeo.height
         Behavior on x {
-            enabled: indicator.canAnimate && pager.animations
+            enabled: indicator.ready && pager.animations
             NumberAnimation {
                 duration: Kirigami.Units.shortDuration
                 easing.type: Easing.OutCubic
             }
         }
         Behavior on y {
-            enabled: indicator.canAnimate && pager.animations
+            enabled: indicator.ready && pager.animations
             NumberAnimation {
                 duration: Kirigami.Units.shortDuration
                 easing.type: Easing.OutCubic
             }
         }
         Behavior on width {
-            enabled: indicator.canAnimate && pager.animations
+            enabled: indicator.ready && pager.animations
             NumberAnimation {
                 duration: Kirigami.Units.shortDuration
                 easing.type: Easing.OutCubic
             }
         }
         Behavior on height {
-            enabled: indicator.canAnimate && pager.animations
+            enabled: indicator.ready && pager.animations
             NumberAnimation {
                 duration: Kirigami.Units.shortDuration
                 easing.type: Easing.OutCubic
             }
         }
-        function snapLayout() {
-            canAnimate = false
+        function arm() {
+            if (pager.width <= 0 || pager.height <= 0 || !pager.modelReady) {
+                ready = false
+                return
+            }
+            ready = false
             Qt.callLater(function() {
-                if (!pager.activeSlot)
+                if (pager.width <= 0 || pager.height <= 0 || !pager.modelReady)
                     return
-                canAnimate = pager.animations
+                ready = true
                 pager.settled = true
             })
         }
-        Component.onCompleted: snapLayout()
+        Component.onCompleted: arm()
     }
 
-    onWidthChanged: indicator.snapLayout()
-    onHeightChanged: indicator.snapLayout()
-    Connections {
-        target: pager
-        function onActiveSlotChanged() {
-            if (pager.activeSlot && !indicator.layoutReady) {
-                indicator.layoutReady = true
-                indicator.snapLayout()
-            }
-        }
-    }
+    onModelReadyChanged: indicator.arm()
+    onWidthChanged: indicator.arm()
+    onHeightChanged: indicator.arm()
     Connections {
         target: desktopModel
-        function onDesktopCountChanged() { indicator.snapLayout() }
+        function onDesktopCountChanged() { indicator.arm() }
+        function onCurrentIndexChanged() {
+            if (!indicator.ready)
+                indicator.arm()
+        }
     }
 
     Repeater {
@@ -548,13 +568,29 @@ Item {
             Repeater {
                 model: windowPopup.windows
                 delegate: QQC2.ItemDelegate {
+                    id: row
                     required property var modelData
                     width: windowPopupBody.width
-                    text: modelData.title
-                    icon.name: modelData.urgent ? "dialog-warning" : ""
                     onClicked: {
                         desktopModel.activateWindow(modelData.winId)
                         pager.closeWindowPopup()
+                    }
+                    contentItem: Row {
+                        spacing: Kirigami.Units.smallSpacing
+                        Kirigami.Icon {
+                            width: Kirigami.Units.iconSizes.smallMedium
+                            height: Kirigami.Units.iconSizes.smallMedium
+                            anchors.verticalCenter: parent.verticalCenter
+                            source: desktopModel.decorationFor(row.modelData.winId)
+                            fallback: "application-x-executable"
+                        }
+                        QQC2.Label {
+                            width: parent.width - Kirigami.Units.iconSizes.smallMedium - Kirigami.Units.smallSpacing
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: row.modelData.title
+                            elide: Text.ElideRight
+                            color: row.highlighted || row.down ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+                        }
                     }
                 }
             }

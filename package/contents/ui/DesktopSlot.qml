@@ -16,7 +16,7 @@ Item {
     required property var desktops
     property bool overlay: false
 
-    readonly property bool active: desktops.currentIndex === index
+    readonly property bool active: pagerItem.modelReady && desktops.currentIndex === index
     readonly property var entry: desktops.infoFor(index)
     readonly property bool occupied: entry !== null && entry.count > 0
     readonly property bool urgent: entry !== null && entry.urgent

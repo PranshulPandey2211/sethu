@@ -213,6 +213,24 @@ Item {
         return String(first)
     }
 
+    function decorationFor(winId) {
+        const target = String(winId)
+        if (target.length === 0)
+            return ""
+        const roleWin = TaskManager.AbstractTasksModel.WinIdList
+        const rows = tasks.count
+        for (let i = 0; i < rows; ++i) {
+            const idx = tasks.index(i, 0)
+            if (winIdAt(tasks.data(idx, roleWin)) !== target)
+                continue
+            const icon = tasks.data(idx, Qt.DecorationRole)
+            if (icon)
+                return icon
+            return String(tasks.data(idx, TaskManager.AbstractTasksModel.AppId) || "")
+        }
+        return ""
+    }
+
     function activateWindow(winId) {
         const target = String(winId)
         if (target.length === 0)
@@ -310,7 +328,7 @@ Item {
                 let relevant = false
                 for (let i = 0; i < roles.length; ++i) {
                     const role = roles[i]
-                    if (role === 0 || role === roleWindow || role === roleDesktops || role === roleAll || role === roleUrgent || role === roleSkip || role === roleWin) {
+                    if (role === 0 || role === roleWindow || role === roleDesktops || role === roleAll || role === roleUrgent || role === roleSkip || role === roleWin || role === Qt.DecorationRole) {
                         relevant = true
                         break
                     }
