@@ -110,13 +110,25 @@ Item {
         verticalAlignment: Text.AlignVCenter
     }
 
+    function hideTip() {
+        tip.hideImmediately()
+    }
+
     PlasmaCore.ToolTipArea {
+        id: tip
         anchors.fill: parent
         visible: slot.overlay
-        enabled: slot.overlay && slot.pagerItem.tooltips && slot.listedWindows === 0
-        mainText: slot.desktops.desktopName(slot.index)
-        subText: slot.desktops.tooltipBody(slot.index)
+        enabled: slot.overlay && slot.pagerItem.tooltips && !slot.pagerItem.listOpen && slot.listedWindows === 0
+        mainText: !slot.pagerItem.listOpen && slot.listedWindows === 0 ? slot.desktops.desktopName(slot.index) : ""
+        subText: !slot.pagerItem.listOpen && slot.listedWindows === 0 ? slot.desktops.tooltipBody(slot.index) : ""
         location: Plasmoid.location
+        Connections {
+            target: slot.pagerItem
+            function onListOpenChanged() {
+                if (slot.pagerItem.listOpen)
+                    tip.hideImmediately()
+            }
+        }
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton

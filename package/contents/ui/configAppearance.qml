@@ -61,6 +61,11 @@ KCM.SimpleKCM {
             return cfg_inactiveColor
         return themeColor.a > 0.05 ? themeColor : "#fcfcfc"
     }
+    function contrastOn(color) {
+        const luma = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b
+        return luma > 0.62 ? "#1a1a1a" : "#fcfcfc"
+    }
+    readonly property color previewLabelOnActive: cfg_useSystemColors ? Kirigami.Theme.highlightedTextColor : contrastOn(previewActiveColor)
     readonly property font previewFont: Qt.font({
         family: Kirigami.Theme.defaultFont.family,
         pixelSize: Math.max(8, Math.round(Math.min(
@@ -153,7 +158,8 @@ KCM.SimpleKCM {
         let h = active ? cfg_activeShapeHeight : cfg_inactiveShapeHeight
         if (text && String(text).length > 0) {
             const pad = Math.max(6, Math.round(Math.min(cfg_inactiveShapeHeight, cfg_activeShapeHeight) * 0.35))
-            w = Math.max(w, Math.ceil(previewMetrics.advanceWidth(String(text))) + pad * 2)
+            const cap = Math.max(w, Kirigami.Units.gridUnit * 7)
+            w = Math.max(w, Math.min(cap, Math.ceil(previewMetrics.advanceWidth(String(text))) + pad * 2))
             h = Math.max(h, Math.ceil(previewMetrics.height), fontSize)
         }
         return { width: Math.max(4, w), height: Math.max(4, h) }
@@ -233,8 +239,9 @@ KCM.SimpleKCM {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             text: sample.sampleText
+                            elide: Text.ElideRight
                             font: root.previewFont
-                            color: sample.active ? Kirigami.Theme.highlightedTextColor : root.previewInactiveColor
+                            color: sample.active ? root.previewLabelOnActive : root.previewInactiveColor
                         }
 
                         Text {
@@ -243,7 +250,7 @@ KCM.SimpleKCM {
                             text: "2"
                             font.pixelSize: Math.max(8, Math.round(Math.min(sample.width, sample.height) * 0.55))
                             font.weight: Font.DemiBold
-                            color: sample.active ? Kirigami.Theme.highlightedTextColor : root.previewInactiveColor
+                            color: sample.active ? root.previewLabelOnActive : root.previewInactiveColor
                         }
 
                         Rectangle {
@@ -560,6 +567,7 @@ KCM.SimpleKCM {
 
         QQC2.CheckBox {
             Kirigami.FormData.label: i18n("Window count")
+            enabled: root.cfg_labelMode === "none"
             text: i18n("Show how many windows are on each desktop")
             checked: root.cfg_showWindowCount
             onToggled: root.cfg_showWindowCount = checked

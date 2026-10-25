@@ -55,6 +55,7 @@ Item {
     property int hoveredIndex: -1
     property Item hoverItem: null
     property bool popupContainsMouse: false
+    readonly property bool listOpen: windowPopup.visible
 
     function cappedRadius(w, h, raw) {
         const cap = Math.min(w, h) / 2
@@ -427,14 +428,14 @@ Item {
             hoveredIndex = index
             hoverItem = item
             windowPopupCloseTimer.stop()
+            if (item.hideTip)
+                item.hideTip()
             const entry = desktopModel.infoFor(index)
             if (entry && entry.windows && entry.windows.length > 0) {
                 windowPopupTimer.desktopIndex = index
                 windowPopupTimer.restart()
-            } else {
-                windowPopupTimer.stop()
-                windowPopup.close()
-            }
+            } else
+                closeWindowPopup()
         } else if (hoveredIndex === index) {
             hoveredIndex = -1
             hoverItem = null
@@ -443,74 +444,49 @@ Item {
         }
     }
 
+    function placePopupAnchor(item) {
+        const win = pager.Window.window
+        const content = win && win.contentItem ? win.contentItem : null
+        const loc = Plasmoid.location
+        if (content) {
+            const center = item.mapToItem(content, item.width / 2, item.height / 2)
+            let x = center.x
+            let y = center.y
+            if (loc === PlasmaCore.Types.BottomEdge)
+                y = 0
+            else if (loc === PlasmaCore.Types.LeftEdge)
+                x = content.width
+            else if (loc === PlasmaCore.Types.RightEdge)
+                x = 0
+            else
+                y = content.height
+            const local = pager.mapFromItem(content, x, y)
+            popupAnchor.x = local.x
+            popupAnchor.y = local.y
+            return
+        }
+        const mid = item.mapToItem(pager, item.width / 2, item.height / 2)
+        popupAnchor.x = loc === PlasmaCore.Types.RightEdge ? 0 : (loc === PlasmaCore.Types.LeftEdge ? pager.width : mid.x)
+        popupAnchor.y = loc === PlasmaCore.Types.BottomEdge ? 0 : (pager.vertical ? mid.y : pager.height)
+    }
+
     function showWindowPopup(index) {
         const item = hoverItem
         const entry = desktopModel.infoFor(index)
         if (!item || item.index !== index || !entry || !entry.windows || entry.windows.length < 1) {
-            windowPopup.close()
+            closeWindowPopup()
             return
         }
         windowPopup.desktopIndex = index
-        Qt.callLater(function() {
-            if (windowPopup.desktopIndex !== index || hoverItem !== item)
-                return
-            positionWindowPopup(item)
-            if (!windowPopup.opened)
-                windowPopup.open()
-            Qt.callLater(function() {
-                if (windowPopup.desktopIndex === index && hoverItem === item)
-                    positionWindowPopup(item)
-            })
-        })
-    }
-
-    function positionWindowPopup(item) {
-        const gap = 8
-        const w = windowPopup.implicitWidth
-        const h = Math.max(windowPopup.implicitHeight, 1)
-        const anchor = item.mapToItem(pager, 0, 0)
-        let px = anchor.x + (item.width - w) / 2
-        let py = anchor.y - h - gap
-        const loc = Plasmoid.location
-        if (loc === PlasmaCore.Types.TopEdge)
-            py = anchor.y + item.height + gap
-        else if (loc === PlasmaCore.Types.LeftEdge) {
-            px = anchor.x + item.width + gap
-            py = anchor.y + (item.height - h) / 2
-        } else if (loc === PlasmaCore.Types.RightEdge) {
-            px = anchor.x - w - gap
-            py = anchor.y + (item.height - h) / 2
-        }
-        const origin = pager.mapToGlobal(0, 0)
-        const geo = desktopModel.screenGeometry
-        if (geo.width > 0) {
-            const minX = geo.x + 8 - origin.x
-            const maxX = geo.x + geo.width - w - 8 - origin.x
-            px = Math.min(Math.max(px, minX), Math.max(minX, maxX))
-        }
-        if (geo.height > 0) {
-            const minY = geo.y + 8 - origin.y
-            const maxY = geo.y + geo.height - h - 8 - origin.y
-            py = Math.min(Math.max(py, minY), Math.max(minY, maxY))
-        }
-        const slotLeft = anchor.x
-        const slotRight = anchor.x + item.width
-        const slotTop = anchor.y
-        const slotBottom = anchor.y + item.height
-        if (px < slotRight && px + w > slotLeft && py < slotBottom && py + h > slotTop) {
-            if (loc === PlasmaCore.Types.TopEdge)
-                py = slotBottom + gap
-            else if (loc !== PlasmaCore.Types.LeftEdge && loc !== PlasmaCore.Types.RightEdge)
-                py = slotTop - h - gap
-        }
-        windowPopup.x = Math.round(px)
-        windowPopup.y = Math.round(py)
+        placePopupAnchor(item)
+        windowPopup.visualParent = popupAnchor
+        windowPopup.visible = true
     }
 
     function closeWindowPopup() {
         windowPopupTimer.stop()
         windowPopupCloseTimer.stop()
-        windowPopup.close()
+        windowPopup.visible = false
     }
 
     Timer {
@@ -522,31 +498,44 @@ Item {
 
     Timer {
         id: windowPopupCloseTimer
-        interval: 400
+        interval: 1000
         onTriggered: {
             if (!pager.popupContainsMouse)
-                windowPopup.close()
+                pager.closeWindowPopup()
         }
     }
 
-    QQC2.Popup {
+    Item {
+        id: popupAnchor
+        width: 1
+        height: 1
+        visible: false
+    }
+
+    PlasmaCore.Dialog {
         id: windowPopup
-        z: 10
-        modal: false
-        focus: false
-        padding: Kirigami.Units.smallSpacing
-        popupType: QQC2.Popup.Window
-        closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
+        visible: false
+        location: Plasmoid.location
+        floating: Kirigami.Units.largeSpacing
+        hideOnWindowDeactivate: true
+        backgroundHints: Plasmoid.configuration.windowListTheme ? PlasmaCore.Dialog.StandardBackground : PlasmaCore.Dialog.SolidBackground
         property int desktopIndex: -1
         readonly property var entry: desktopIndex >= 0 ? desktopModel.infoFor(desktopIndex) : null
         readonly property var windows: entry && entry.windows ? entry.windows : []
-        implicitWidth: Kirigami.Units.gridUnit * 12
-        implicitHeight: windowPopupBody.implicitHeight + padding * 2
 
-        Column {
+        Component.onCompleted: flags = flags | Qt.WindowStaysOnTopHint
+
+        mainItem: Item {
             id: windowPopupBody
-            width: windowPopup.implicitWidth - windowPopup.padding * 2
-            spacing: Kirigami.Units.smallSpacing
+            readonly property int pad: Kirigami.Units.largeSpacing
+            readonly property int rowHeight: Kirigami.Units.iconSizes.smallMedium + Kirigami.Units.smallSpacing * 2
+            implicitWidth: Kirigami.Units.gridUnit * 14
+            implicitHeight: windowList.implicitHeight + pad * 2
+            width: implicitWidth
+            height: implicitHeight
+
+            Kirigami.Theme.colorSet: Kirigami.Theme.Window
+            Kirigami.Theme.inherit: false
 
             HoverHandler {
                 onHoveredChanged: {
@@ -558,47 +547,80 @@ Item {
                 }
             }
 
-            QQC2.Label {
-                width: parent.width
-                elide: Text.ElideRight
-                font.weight: Font.DemiBold
-                text: windowPopup.desktopIndex >= 0 ? desktopModel.desktopName(windowPopup.desktopIndex) : ""
-            }
+            Column {
+                id: windowList
+                x: windowPopupBody.pad
+                y: windowPopupBody.pad
+                width: parent.width - windowPopupBody.pad * 2
+                spacing: Kirigami.Units.smallSpacing
 
-            Repeater {
-                model: windowPopup.windows
-                delegate: QQC2.ItemDelegate {
-                    id: row
-                    required property var modelData
-                    width: windowPopupBody.width
-                    onClicked: {
-                        desktopModel.activateWindow(modelData.winId)
-                        pager.closeWindowPopup()
-                    }
-                    contentItem: Row {
-                        spacing: Kirigami.Units.smallSpacing
-                        Kirigami.Icon {
-                            width: Kirigami.Units.iconSizes.smallMedium
-                            height: Kirigami.Units.iconSizes.smallMedium
-                            anchors.verticalCenter: parent.verticalCenter
-                            source: desktopModel.decorationFor(row.modelData.winId)
-                            fallback: "application-x-executable"
+                Kirigami.Heading {
+                    id: nameLabel
+                    width: parent.width
+                    level: 3
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+                    text: windowPopup.desktopIndex >= 0 ? desktopModel.desktopName(windowPopup.desktopIndex) : ""
+                }
+
+                Repeater {
+                    model: windowPopup.windows
+                    delegate: Item {
+                        id: row
+                        required property var modelData
+                        width: windowList.width
+                        height: windowPopupBody.rowHeight
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: Kirigami.Units.smallSpacing
+                            color: Kirigami.Theme.highlightColor
+                            opacity: rowHover.hovered ? 0.3 : 0
                         }
-                        QQC2.Label {
-                            width: parent.width - Kirigami.Units.iconSizes.smallMedium - Kirigami.Units.smallSpacing
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: row.modelData.title
-                            elide: Text.ElideRight
-                            color: row.highlighted || row.down ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: Kirigami.Units.smallSpacing
+                            anchors.rightMargin: Kirigami.Units.smallSpacing
+                            spacing: Kirigami.Units.smallSpacing
+                            Kirigami.Icon {
+                                width: Kirigami.Units.iconSizes.smallMedium
+                                height: Kirigami.Units.iconSizes.smallMedium
+                                anchors.verticalCenter: parent.verticalCenter
+                                source: desktopModel.decorationFor(row.modelData.winId)
+                                fallback: "application-x-executable"
+                            }
+                            QQC2.Label {
+                                width: parent.width - Kirigami.Units.iconSizes.smallMedium - Kirigami.Units.smallSpacing
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: row.modelData.title
+                                elide: Text.ElideRight
+                                color: Kirigami.Theme.textColor
+                            }
+                        }
+
+                        HoverHandler { id: rowHover }
+
+                        TapHandler {
+                            onTapped: {
+                                const winId = row.modelData.winId
+                                const desk = windowPopup.desktopIndex
+                                pager.closeWindowPopup()
+                                desktopModel.activate(desk)
+                                Qt.callLater(function() { desktopModel.activateWindow(winId) })
+                            }
                         }
                     }
                 }
-            }
 
-            QQC2.Label {
-                width: parent.width
-                visible: windowPopup.entry && windowPopup.entry.count > windowPopup.windows.length
-                text: windowPopup.entry ? i18n("+%1 more", Math.max(0, windowPopup.entry.count - windowPopup.windows.length)) : ""
+                QQC2.Label {
+                    id: moreLabel
+                    width: parent.width
+                    visible: windowPopup.entry && windowPopup.entry.count > windowPopup.windows.length
+                    text: windowPopup.entry ? i18n("+%1 more", Math.max(0, windowPopup.entry.count - windowPopup.windows.length)) : ""
+                    color: Kirigami.Theme.textColor
+                    opacity: 0.75
+                }
             }
         }
     }

@@ -17,6 +17,10 @@ PlasmoidItem {
 
     function syncStatus() {
         const item = root.fullRepresentationItem
+        if (item && item.listOpen) {
+            Plasmoid.status = PlasmaCore.Types.RequiresAttentionStatus
+            return
+        }
         const hide = Plasmoid.configuration.hideWhenSingle && item && item.desktopCount < 2
         Plasmoid.status = hide ? PlasmaCore.Types.HiddenStatus : PlasmaCore.Types.ActiveStatus
     }
@@ -25,6 +29,7 @@ PlasmoidItem {
     Connections {
         target: root.fullRepresentationItem
         function onDesktopCountChanged() { root.syncStatus() }
+        function onListOpenChanged() { root.syncStatus() }
     }
     Connections {
         target: Plasmoid.configuration

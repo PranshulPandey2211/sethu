@@ -21,6 +21,7 @@ KCM.SimpleKCM {
     property string cfg_clickCurrent: "overview"
     property bool cfg_manageDesktops: true
     property bool cfg_tooltips: true
+    property bool cfg_windowListTheme: false
     property bool cfg_filterByScreen: false
     property bool cfg_filterByActivity: true
     property bool cfg_includeAllDesktopsWindows: true
@@ -80,6 +81,13 @@ KCM.SimpleKCM {
             text: i18n("Show the desktop name")
             checked: root.cfg_tooltips
             onToggled: root.cfg_tooltips = checked
+        }
+
+        QQC2.CheckBox {
+            Kirigami.FormData.label: i18n("Window list")
+            text: i18n("Follow the Plasma theme (transparent when the theme is)")
+            checked: root.cfg_windowListTheme
+            onToggled: root.cfg_windowListTheme = checked
         }
 
         QQC2.CheckBox {
