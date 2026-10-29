@@ -478,9 +478,32 @@ Item {
             return
         }
         windowPopup.desktopIndex = index
+        desktopModel.rebuildOccupancy()
+        if (popupWindows.count < 1) {
+            closeWindowPopup()
+            return
+        }
         placePopupAnchor(item)
         windowPopup.visualParent = popupAnchor
         windowPopup.visible = true
+    }
+
+    function syncPopupWindows() {
+        const index = windowPopup.desktopIndex
+        const map = desktopModel.occupancy
+        const entry = index >= 0 ? map[String(desktopModel.desktopId(index))] : null
+        const list = entry && entry.windows ? entry.windows : []
+        const n = Math.min(list.length || 0, 8)
+        popupWindows.clear()
+        for (let i = 0; i < n; ++i) {
+            const row = list[i]
+            popupWindows.append({
+                title: String(row && row.title ? row.title : ""),
+                winId: String(row && row.winId ? row.winId : "")
+            })
+        }
+        if (windowPopup.visible && popupWindows.count < 1)
+            closeWindowPopup()
     }
 
     function closeWindowPopup() {
@@ -512,6 +535,22 @@ Item {
         visible: false
     }
 
+    ListModel {
+        id: popupWindows
+    }
+
+    Connections {
+        target: desktopModel
+        function onOccupancyRevisionChanged() { pager.syncPopupWindows() }
+    }
+
+    Timer {
+        interval: 400
+        repeat: true
+        running: windowPopup.visible
+        onTriggered: desktopModel.rebuildOccupancy()
+    }
+
     PlasmaCore.Dialog {
         id: windowPopup
         visible: false
@@ -520,8 +559,11 @@ Item {
         hideOnWindowDeactivate: true
         backgroundHints: Plasmoid.configuration.windowListTheme ? PlasmaCore.Dialog.StandardBackground : PlasmaCore.Dialog.SolidBackground
         property int desktopIndex: -1
-        readonly property var entry: desktopIndex >= 0 ? desktopModel.infoFor(desktopIndex) : null
-        readonly property var windows: entry && entry.windows ? entry.windows : []
+        readonly property int windowCount: {
+            const map = desktopModel.occupancy
+            const entry = desktopIndex >= 0 ? map[String(desktopModel.desktopId(desktopIndex))] : null
+            return entry && entry.count ? entry.count : popupWindows.count
+        }
 
         Component.onCompleted: flags = flags | Qt.WindowStaysOnTopHint
 
@@ -564,10 +606,11 @@ Item {
                 }
 
                 Repeater {
-                    model: windowPopup.windows
+                    model: popupWindows
                     delegate: Item {
                         id: row
-                        required property var modelData
+                        required property string title
+                        required property string winId
                         width: windowList.width
                         height: windowPopupBody.rowHeight
 
@@ -587,13 +630,13 @@ Item {
                                 width: Kirigami.Units.iconSizes.smallMedium
                                 height: Kirigami.Units.iconSizes.smallMedium
                                 anchors.verticalCenter: parent.verticalCenter
-                                source: desktopModel.decorationFor(row.modelData.winId)
+                                source: desktopModel.decorationFor(row.winId)
                                 fallback: "application-x-executable"
                             }
                             QQC2.Label {
                                 width: parent.width - Kirigami.Units.iconSizes.smallMedium - Kirigami.Units.smallSpacing
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: row.modelData.title
+                                text: row.title
                                 elide: Text.ElideRight
                                 color: Kirigami.Theme.textColor
                             }
@@ -603,7 +646,7 @@ Item {
 
                         TapHandler {
                             onTapped: {
-                                const winId = row.modelData.winId
+                                const winId = row.winId
                                 const desk = windowPopup.desktopIndex
                                 pager.closeWindowPopup()
                                 desktopModel.activate(desk)
@@ -616,8 +659,8 @@ Item {
                 QQC2.Label {
                     id: moreLabel
                     width: parent.width
-                    visible: windowPopup.entry && windowPopup.entry.count > windowPopup.windows.length
-                    text: windowPopup.entry ? i18n("+%1 more", Math.max(0, windowPopup.entry.count - windowPopup.windows.length)) : ""
+                    visible: windowPopup.windowCount > popupWindows.count
+                    text: i18n("+%1 more", Math.max(0, windowPopup.windowCount - popupWindows.count))
                     color: Kirigami.Theme.textColor
                     opacity: 0.75
                 }

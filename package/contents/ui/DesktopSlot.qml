@@ -17,7 +17,10 @@ Item {
     property bool overlay: false
 
     readonly property bool active: pagerItem.modelReady && desktops.currentIndex === index
-    readonly property var entry: desktops.infoFor(index)
+    readonly property var entry: {
+        const map = desktops.occupancy
+        return map[String(desktops.desktopId(index))] || null
+    }
     readonly property bool occupied: entry !== null && entry.count > 0
     readonly property bool urgent: entry !== null && entry.urgent
     readonly property int windowCount: entry !== null ? entry.count : 0

@@ -22,6 +22,7 @@ Item {
     property var names: info.desktopNames
     property bool wraps: info.navigationWrappingAround !== 0
     property var occupancy: ({})
+    property int occupancyRevision: 0
     property real wheelBuffer: 0
 
     readonly property var currentId: {
@@ -63,6 +64,12 @@ Item {
         filterHidden: true
         activity: activityInfo.currentActivity
         screenGeometry: model.screenGeometry
+        onCountChanged: model.scheduleOccupancy()
+        onModelReset: model.scheduleOccupancy()
+        onRowsInserted: model.scheduleOccupancy()
+        onRowsRemoved: model.scheduleOccupancy()
+        onDataChanged: model.scheduleOccupancy()
+        onActiveTaskChanged: model.scheduleOccupancy()
     }
 
     Timer {
@@ -303,6 +310,7 @@ Item {
             }
         }
         occupancy = next
+        occupancyRevision = occupancyRevision + 1
     }
 
     Component.onCompleted: scheduleOccupancy()
@@ -313,30 +321,4 @@ Item {
         function onNumberOfDesktopsChanged() { model.scheduleOccupancy() }
     }
 
-    Connections {
-        target: model.tasks
-        function onCountChanged() { model.scheduleOccupancy() }
-        function onModelReset() { model.scheduleOccupancy() }
-        function onDataChanged(topLeft, bottomRight, roles) {
-            if (roles && roles.length > 0) {
-                const roleWindow = TaskManager.AbstractTasksModel.IsWindow
-                const roleDesktops = TaskManager.AbstractTasksModel.VirtualDesktops
-                const roleAll = TaskManager.AbstractTasksModel.IsOnAllVirtualDesktops
-                const roleUrgent = TaskManager.AbstractTasksModel.IsDemandingAttention
-                const roleSkip = TaskManager.AbstractTasksModel.SkipPager
-                const roleWin = TaskManager.AbstractTasksModel.WinIdList
-                let relevant = false
-                for (let i = 0; i < roles.length; ++i) {
-                    const role = roles[i]
-                    if (role === 0 || role === roleWindow || role === roleDesktops || role === roleAll || role === roleUrgent || role === roleSkip || role === roleWin || role === Qt.DecorationRole) {
-                        relevant = true
-                        break
-                    }
-                }
-                if (!relevant)
-                    return
-            }
-            model.scheduleOccupancy()
-        }
-    }
 }
